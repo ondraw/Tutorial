@@ -1,0 +1,23 @@
+from channels.generic.websocket import WebsocketConsumer
+import json
+
+class TestWS(WebsocketConsumer):
+    
+      # websocket 연결 시 실행
+    def connect(self):
+#         self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.accept()
+        # websocket 연결 종료 시 실행 
+    def disconnect(self, close_code):
+        pass
+        # 클라이언트로부터 메세지를 받을 시 실행
+    def receive(self, text_data):
+        text_data_json = json.loads(text_data)
+        message = text_data_json['message']
+                # 클라이언트로부터 받은 메세지를 다시 클라이언트로 보내준다.
+        self.send(text_data=json.dumps({
+            'message': message
+        }))
+        
+        #query_string
+        #dict: {'type': 'websocket', 'path': '/ws/songs/hoho/', 'raw_path': b'/ws/songs/hoho/', 'headers': [(b'host', b'127.0.0.1:8000'), (b'connection', b'Upgrade'), (b'pragma', b'no-cache'), (b'cache-control', b'no-cache'), (b'user-agent', b'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'), (b'upgrade', b'websocket'), (b'origin', b'http://127.0.0.1:8000'), (b'sec-websocket-version', b'13'), (b'accept-encoding', b'gzip, deflate, br'), (b'accept-language', b'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'), (b'cookie', b'csrftoken=JTiYIfOrSsSZskVulmpi12zUbkQKtct5gNWbky9GylkcbC4gbj3DHBeQtnndohuf; _FixWith_=true'), (b'sec-websocket-key', b'F5inCEEsWEZRdiNFZmGSmQ=='), (b'sec-websocket-extensions', b'permessage-deflate; client_max_window_bits')], 'query_string': b'abc=1234', 'client': ['127.0.0.1', 50054], 'server': ['127.0.0.1', 8000], 'subprotocols': [], 'asgi': {'version': '3.0'}, 'cookies': {'csrftoken': 'JTiYIfOrSsSZskVulmpi12zUbkQK...
