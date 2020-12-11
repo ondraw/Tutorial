@@ -1,5 +1,5 @@
 # Tutorial
-[블로그에 가시면 설명이 있습니다.](https://github.com/ondraw/Tutorial/tree/main/DjangoWebSocket)
+[블로그](https://lastmake.blogspot.com/)
 
 1. DjangoWebSocket - 장고 웹소켓 
 
