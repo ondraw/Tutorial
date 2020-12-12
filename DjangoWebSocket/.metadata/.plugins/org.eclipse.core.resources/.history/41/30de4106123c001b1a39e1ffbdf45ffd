@@ -1,0 +1,54 @@
+from django.shortcuts import render,get_object_or_404
+from django.template.context_processors import request
+from django.template import loader
+from django.http.response import HttpResponse
+from django.http import Http404,HttpResponseRedirect
+from django.urls import reverse
+from .models import Question,Choice
+
+
+def index(request):
+    #질문 객체의 pub_date로 정렬 한 후 리스트 0~5까지만 보여준다.
+    latest_question_list = Question.objects.order_by('-pub_date')[:5]
+    
+    template = loader.get_template('index.html')
+    context = {'latest_question_list': latest_question_list}
+    return HttpResponse(template.render(context, request))
+
+    #output = ', '.join([q.question_text for q in latest_question_list])
+    #return HttpResponse(output)
+
+
+
+def detail(request, question_id):
+#     try:
+#         question = Question.objects.get(pk=question_id)
+#     except Question.DoesNotExist:
+#         raise Http404("질문 페이지가 존재 하지 않습니다.")
+#     return render(request, 'detail.html', {'question': question})
+    question = get_object_or_404(Question, pk=question_id)
+    return render(request, 'detail.html', {'question': question})
+
+def vote(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    try:
+        selected_choice = question.choice_set.get(pk=request.POST['choice'])
+    except (KeyError, Choice.DoesNotExist):
+        # 다시 질분을 디스플레이 해준다.
+        return render(request, 'polls/detail.html', {
+            'question': question,
+            'error_message': "선택을 해주세요.",
+        })
+    else:
+        selected_choice.votes += 1
+        selected_choice.save()
+        # Always return an HttpResponseRedirect after successfully dealing
+        # with POST data. This prevents data from being posted twice if a
+        # user hits the Back button.
+        return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
+    
+    
+def results(request, question_id):
+    response = "질문의 결과 입니다. %s."
+    return HttpResponse(response % question_id)
+

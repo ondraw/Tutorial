@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;myDjango/songs/templates/result.html&apos; to &apos;results.html&apos;" description="Rename resource &apos;result.html&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="songs/templates/result.html" name="results.html" stamp="1607736006108" updateReferences="true"/>
+</session>

@@ -1,0 +1,18 @@
+from django.shortcuts import render
+from django.template.context_processors import request
+from django.http.response import HttpResponse
+
+# Create your views here.
+def test(request):
+    return HttpResponse("리턴 값입니다.")
+
+
+def detail(request, question_id):
+    return HttpResponse("당신의 질문 %s." % question_id)
+
+def results(request, question_id):
+    response = "질문의 결과 입니다. %s."
+    return HttpResponse(response % question_id)
+
+def vote(request, question_id):
+    return HttpResponse("질문 결과의 통계입니다. %s." % question_id)
