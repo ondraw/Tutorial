@@ -1,0 +1,13 @@
+1> python3 install tensorflow  적당한 모듈을 찾을수 없다는 에러가 난다. 
+이럴때는 텐써플로우가 파이썬 몇버전까지 지원하는지 사이트에서 찾아본다. 지원하는 파이썬 버전을 다운로드 해주어 설치해야 한다.
+너무 최신 파이썬을 받으면 안된다. 
+
+2> 이클립스에서 tensorflow을 import 가 안되어 있다. 
+설정에 pydev의 interprter / librarys에 추가해주어야 한다.
+tensorflow의 설치 path을 알아올려면
+$> import tensorflow as tf
+$> print(tf.__file__ )
+결과 > /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/site-packages/tensorflow 가 나온다.
+/Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/site-packages 폴더를 추가해준다.
+
+
