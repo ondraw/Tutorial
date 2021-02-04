@@ -1,77 +1,158 @@
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-from tensorflow.keras.models import load_model
-from sklearn import utils
-from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import LSTM,Dense
-from tensorflow.keras.models import Model,Sequential
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import ModelCheckpoint
-import joblib
-import matplotlib.pyplot as plt
- 
-###########################################################################
-#주제 이전날짜 7일의 Open Hight Low Close의 값으로 내일의 Close가를 예측하는 모델이다.
-###########################################################################
- 
- 
-#날짜,컬럼개수,    볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격   볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격
-col_Names=["time", "count", "v10", "p10","v9", "p9","v8", "p8","v7", "p7","v6", "p6","count2","v5", "p5","v4", "p4","v3", "p3","v2", "p2","v1", "p1"]
-pd = pd.read_csv('/Users/songs/Downloads/MBMData/20210125/ETH.txt',names=col_Names)
+import cv2
+import os
 
-#볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격   볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격,볼륨,가격
-pd = pd[["v10", "p10","v9", "p9","v8", "p8","v7", "p7","v6", "p6","v5", "p5","v4", "p4","v3", "p3","v2", "p2","v1", "p1"]]
-pd = pd.drop_duplicates() #데이터량이 많기 때문에 중복 데이터를 제거 하자.
-
-print(pd.info(),"\n" , pd.shape)
-
-
-test = pd.values
-#test = test[:200,:]
-  
-transformer = joblib.load('./Work.myeth_model_trans.pkl') 
-test = transformer.transform(test) #MinMax 정규화.
-model = load_model('./Work.myeth_model.h5')
-
-
-#window : 우리가 데이터를 바라보는 영역을 말한다. 0~window 길이만큼만 바라본다.
-sequence_length = 60 #input 데이터는 7개의 값이 들어와야 한다. 즉 하나의 값으로 추측을 하지 않고 7개의 값을 묶어서 추측을 한다. 
-window_length = sequence_length + 1
-
-x_test = []
-y_test = []
-for i in range(0, len(test) - window_length*2): 
-    window = test[i:i + window_length, :]
-    x_test.append(window[:-1, :]) 
-    y_test.append(test[i + window_length*2, [9]])
-      
-x_test = np.array(x_test)
-y_test = np.array(y_test)
-
- 
-##########모델 예측
-#pd = pd[["v10", "p10","v9", "p9","v8", "p8","v7", "p7","v6", "p6","v5", "p5","v4", "p4","v3", "p3","v2", "p2","v1", "p1"]]
-y_test_inverse = []
-for y in y_test:
-    inverse = transformer.inverse_transform([[0, 0,0, 0,0, 0,0, 0,0, y[0],0, 0,0, 0,0, 0,0, 0,0,0]])
-#     inverse = transformer.inverse_transform([[0, 0,0, 0,y[0], 0,0, 0,0, 0]])
-    y_inverse = inverse.flatten()[9]
-    y_test_inverse.append(y_inverse)
-    print(y_inverse)
- 
-y_predict = model.predict(x_test)
-y_predict_inverse = []
-for y in y_predict:
-    inverse = transformer.inverse_transform([[0, 0,0, 0,0, 0,0, 0,0, y[0],0, 0,0, 0,0, 0,0, 0,0,0]])
-#     inverse = transformer.inverse_transform([[0, 0,0, 0,y[0], 0,0, 0,0, 0]])
-    y_inverse = inverse.flatten()[9]
+class BatchFaceImageDatset:
+    FileList = []
+    #Images = []
+    #Annotations = []
     
-    y_predict_inverse.append(y_inverse)
- 
- 
-plt.plot(y_test_inverse,'ro')
-plt.plot(y_predict_inverse,'bo')
-plt.xlabel('Time Period')
-plt.ylabel('Close')
-plt.show()
+    TrainImages = []
+    TrainAnnotaions = []
+    Train_Batch_Offset = 0
+    Train_Epochs_Completed = 0
+    
+    ValidImages = []
+    ValidAnnotaions = []
+    Valid_Batch_Offset = 0
+    Valid_Epochs_Completed = 0
+    
+   
+    
+    def __init__(self,Path,width,height):
+        self.FileList = self.GetFaceFileList(Path)
+        #$$ 테스트
+        self.FileList = self.FileList[:10]
+        
+        AnnotationList = [self.RenameAnnotaion(filenamex) for filenamex in self.FileList]
+        self.SyncImageFiles(self.FileList,AnnotationList)   
+        
+        Images = np.array([self.ReadImage(filename,width,height) for filename in self.FileList])
+        print("Image Length=" , len(Images) , " Shape = " ,Images.shape)
+         
+        
+        Annotations = np.array([self.ReadImage(filename,width,height,1) for filename in AnnotationList])
+        Annotations = np.expand_dims(Annotations, axis=3)
+        print("Annotations Length=" , len(Annotations) , " Shape = " ,Annotations.shape)
+        
+        
+        ImageLen = len(Images)
+        ValidePos = ImageLen - (int)(ImageLen * 0.1)
+        
+        self.TrainImages = Images[:ValidePos]
+        self.TrainAnnotaions = Annotations[:ValidePos]  
+        self.ValidImages = Images[ValidePos:]
+        self.ValidAnnotaions = Annotations[ValidePos:]
+        
+        self.Suffle()
+        
+        print("TrainImages Length=" , len(self.TrainImages) , " Shape = " ,self.TrainImages.shape)
+        print("TrainAnnotaions Length=" , len(self.TrainAnnotaions) , " Shape = " ,self.TrainAnnotaions.shape)
+        
+    
+        
+     # batch_size만큼의 다음 배치를 가져옵니다.
+    def Next(self, batch_size):
+        start = self.Train_Batch_Offset
+        self.Train_Batch_Offset += batch_size
+        
+        if self.Train_Batch_Offset > self.TrainImages.shape[0]:
+            # 한 epoch이 끝났습니다.
+            self.Train_Epochs_Completed += 1
+            print("에포크 완료: " + str(self.Train_Epochs_Completed))
+            self.Suffle()
+            start = 0
+            self.Train_Batch_Offset = batch_size
+        
+        end = self.Train_Batch_Offset
+        
+        print(self.TrainDataSet[start:end,0].shape)
+        print(self.TrainDataSet[start:end,1].shape)
+        
+        return self.TrainImages[start:end],self.TrainAnnotaions[start:end]
+    
+    def NextValid(self, batch_size):
+        start = self.Valid_Batch_Offset
+        self.Valid_Batch_Offset += batch_size
+        
+        if self.Valid_Batch_Offset > self.ValidImages.shape[0]:
+            # 한 epoch이 끝났습니다.
+            self.Valid_Epochs_Completed += 1
+            print("에포크 밸리드  완료: " + str(self.Valid_Epochs_Completed))
+            self.Suffle()
+            start = 0
+            self.Valid_Batch_Offset = batch_size
+        
+        end = self.Train_Batch_Offset
+        
+        print(self.TrainDataSet[start:end,0].shape)
+        print(self.TrainDataSet[start:end,1].shape)
+        
+        return self.TrainImages[start:end],self.TrainAnnotaions[start:end]
+   
+    def Suffle(self):
+        perm = np.arange(self.TrainImages.shape[0])
+        np.random.shuffle(perm)
+        self.TrainImages = self.TrainImages[perm]
+        self.TrainAnnotaions = self.TrainAnnotaions[perm]
+        perm = np.arange(self.ValidImages.shape[0])
+        np.random.shuffle(perm)
+        self.ValidImages = self.ValidImages[perm]
+        self.ValidAnnotaions = self.ValidAnnotaions[perm]
+        
+    #파일리스트를 소팅하여 가져온다.
+    def GetFaceFileList(self,Path):
+        FileList = []
+        file_list = os.listdir(Path)
+        file_list.sort(reverse=False)
+        for suppath in file_list : 
+            if not "." in suppath:
+                ListSubDir = os.listdir(Path +  "/" + suppath)
+                ListSubDir.sort()
+                for a in ListSubDir:
+                    FileList.append(Path +  "/" + suppath + "/" + a)
+        print('file length = ' , len(FileList))
+        return FileList
+
+    
+    def SyncImageFiles(self,Images,Annotations) :
+        length = len(Annotations) - 1
+        for i in range(length,0,-1):
+            if not os.path.isfile(Annotations[i]):
+                del Images[i]
+                del Annotations[i]
+
+    
+    
+    # raw 인풋 이미지와 annoation된 타겟 이미지를 읽습니다.
+    def ReadImage(self,filename,width,height,Cahnnel=3):
+        try:
+            if Cahnnel != 1:
+                image = cv2.imread(filename,cv2.IMREAD_COLOR)
+            else:
+                image = cv2.imread(filename,cv2.IMREAD_GRAYSCALE)
+            if width != 0:
+                image = cv2.resize(image, dsize=(width, height), interpolation=cv2.INTER_AREA)
+        except Exception as e:
+            print('예외가 발생했습니다.', filename, " ",e)
+        return np.array(image)
+
+     # image filder 정보를 사용하여 annotation경로를 만든다.
+    def RenameAnnotaion(self,filename):
+        arrToken = filename.split('/')
+        arrToken[-1] = arrToken[-1].split('.')[0] + '.ppm'
+        del(arrToken[-2])
+        fileSum = '/'.join(arrToken)
+        return fileSum
+        
+
+
+data = BatchFaceImageDatset('/Users/songs/Extension/Tutorial/Tesorflow/TensorflowStudy/fcn/Data_zoo/My',225,225)
+data.Next(2)
+data.Next(2)
+
+
+
+
+
+
